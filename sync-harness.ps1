@@ -12,7 +12,6 @@ if (-not $status) {
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
 $message = "Sync harness updates $timestamp"
 
-git add AGENTS.md newyorkwatch_editorial_learning_log.md newyorkwatch_harness.html newyorkwatch_weekly_stats_log.md sync-harness.ps1
+git add AGENTS.md newyorkwatch_editorial_learning_log.md newyorkwatch_harness.html newyorkwatch_weekly_stats_log.md newyorkwatch_blog_writing_examples.md sync-harness.ps1
 git commit -m $message
 git push origin main
-
