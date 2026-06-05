@@ -9,8 +9,8 @@ const CONFIG = {
   brand: "벨로르",
   tagline: "명품시계 비교견적 · 매입 플랫폼",
   // ↓↓↓ Supabase 대시보드 > Project Settings > API 에서 복사해 넣으세요
-  supabaseUrl: "YOUR_SUPABASE_URL",
-  supabaseAnonKey: "YOUR_SUPABASE_ANON_KEY",
+  supabaseUrl: "https://iumsnacuxgssnnbckurq.supabase.co",
+  supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1bXNuYWN1eGdzc25uYmNrdXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NDQ5ODQsImV4cCI6MjA5NjIyMDk4NH0.lwej8g4YCaiYuoQSXczwRp6ez-X26DD5d1ycMkYwpIk",
   // 업종 라벨 (오토픽스코리아면 "차량 정보" 등으로 교체)
   itemLabel: "시계 정보",
   currency: "원",
