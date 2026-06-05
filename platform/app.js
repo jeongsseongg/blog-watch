@@ -13,7 +13,7 @@ const CONFIG = {
   supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1bXNuYWN1eGdzc25uYmNrdXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NDQ5ODQsImV4cCI6MjA5NjIyMDk4NH0.lwej8g4YCaiYuoQSXczwRp6ez-X26DD5d1ycMkYwpIk",
   currency: "원",
   listingCategories: ["벨로르판매", "고객판매"],
-  communityCategories: ["공지사항", "매입후기", "시세정보", "명품시계정보", "Q&A", "자유게시판", "이벤트"],
+  communityCategories: ["인사이트", "공지사항", "매입후기", "시세정보", "명품시계정보", "Q&A", "자유게시판", "이벤트"],
 };
 
 const sb = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey);
