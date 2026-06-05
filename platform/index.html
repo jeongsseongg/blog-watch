@@ -93,6 +93,15 @@
     .gallery img{width:88px;height:88px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
     .preview{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
     .preview img{width:64px;height:64px;object-fit:cover;border-radius:9px;border:1px solid var(--line)}
+    /* 사진 선택기 (타일 + 버튼) */
+    .photo-grid{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0}
+    .ptile{position:relative;width:88px;height:88px;border-radius:11px;overflow:hidden;border:1px solid var(--line)}
+    .ptile img{width:100%;height:100%;object-fit:cover;display:block}
+    .prem{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.55);color:#fff;border:0;border-radius:50%;
+      width:22px;height:22px;cursor:pointer;font-size:14px;line-height:1;display:flex;align-items:center;justify-content:center}
+    .padd{width:88px;height:88px;border:1.5px dashed var(--line);border-radius:11px;background:var(--soft);
+      color:var(--muted);font-size:30px;font-weight:300;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+    .padd:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
 
     /* ---- rows / tables ---- */
     .row{display:flex;gap:10px;align-items:center}.row.between{justify-content:space-between;flex-wrap:wrap}

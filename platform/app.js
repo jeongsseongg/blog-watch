@@ -59,15 +59,34 @@ const gallery = (urls) => (urls && urls.length)
   ? `<div class="gallery">${urls.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" loading="lazy"></a>`).join("")}</div>`
   : "";
 
-// 파일 입력 + 미리보기 연결 (최대 max장)
-function wirePhotoInput(inputId, previewId, max = 10) {
-  const input = $("#" + inputId), prev = $("#" + previewId);
-  if (!input) return;
-  input.addEventListener("change", () => {
-    const files = Array.from(input.files).slice(0, max);
-    if (input.files.length > max) toast(`사진은 최대 ${max}장까지예요. 앞 ${max}장만 올립니다.`, false);
-    prev.innerHTML = files.map(f => `<img src="${URL.createObjectURL(f)}" alt="">`).join("");
+// 사진 선택기 (타일 + "+" 버튼 방식). { files } 를 반환
+function createPhotoPicker(containerId, max = 10) {
+  const root = $("#" + containerId);
+  const files = [];
+  const hidden = el(`<input type="file" accept="image/*" multiple style="display:none">`);
+  root.appendChild(hidden);
+  function draw() {
+    [...root.querySelectorAll(".ptile,.padd")].forEach(n => n.remove());
+    files.forEach((f, i) => {
+      const t = el(`<div class="ptile"><img src="${URL.createObjectURL(f)}" alt=""><button type="button" class="prem" data-i="${i}">×</button></div>`);
+      root.appendChild(t);
+    });
+    if (files.length < max) {
+      const add = el(`<button type="button" class="padd" title="사진 추가">+</button>`);
+      add.addEventListener("click", () => hidden.click());
+      root.appendChild(add);
+    }
+    root.querySelectorAll(".prem").forEach(b =>
+      b.addEventListener("click", () => { files.splice(+b.dataset.i, 1); draw(); }));
+  }
+  hidden.addEventListener("change", () => {
+    for (const f of hidden.files) { if (files.length < max) files.push(f); }
+    hidden.value = "";
+    if (files.length >= max) toast(`사진은 최대 ${max}장까지예요.`, false);
+    draw();
   });
+  draw();
+  return { files };
 }
 
 // ============================================================
@@ -260,16 +279,16 @@ function viewNewQuote(main) {
       <label>품목명 *<input id="item_name" placeholder="예: 롤렉스 서브마리너 126610LN"></label>
       <label>브랜드<input id="item_brand" placeholder="예: 롤렉스"></label>
       <label>상세 설명<textarea id="item_detail" rows="4" placeholder="상태, 구성품, 구매시기 등"></textarea></label>
-      <label>사진 (최대 10장)<input id="photos" type="file" accept="image/*" multiple></label>
-      <div id="preview" class="preview"></div>
+      <label>사진 (최대 10장)</label>
+      <div id="photos" class="photo-grid"></div>
       <button id="submit" class="btn btn-lg">견적 요청 등록</button>
     </div>`;
-  wirePhotoInput("photos", "preview", 10);
+  const picker = createPhotoPicker("photos", 10);
   $("#submit").addEventListener("click", async () => {
     const item_name = $("#item_name").value.trim();
     if (!item_name) return toast("품목명을 입력하세요.", false);
     const btn = $("#submit"); btn.disabled = true; btn.textContent = "사진 올리는 중…";
-    const photo_urls = await uploadPhotos($("#photos").files, 10);
+    const photo_urls = await uploadPhotos(picker.files, 10);
     const { error } = await sb.from("quote_requests").insert({
       customer_id: state.user.id,
       item_name,
@@ -402,8 +421,8 @@ async function viewMyListings(main) {
         <label>제목 *<input id="f_title" value="${esc(item?.title || "")}"></label>
         <label>가격<input id="f_price" type="number" value="${item?.price ?? ""}"></label>
         <label>설명<textarea id="f_desc" rows="3">${esc(item?.description || "")}</textarea></label>
-        <label>사진 추가 (최대 10장)<input id="f_photos" type="file" accept="image/*" multiple></label>
-        <div id="f_preview" class="preview"></div>
+        <label>사진 추가 (최대 10장)</label>
+        <div id="f_photos" class="photo-grid"></div>
         ${(item?.image_urls?.length) ? `<p class="muted small">기존 사진 ${item.image_urls.length}장 유지됨</p>${gallery(item.image_urls)}` : ""}
         <label>상태<select id="f_status">
           ${["on_sale","sold","hidden"].map(s => `<option ${item?.status===s?"selected":""}>${s}</option>`).join("")}
@@ -411,12 +430,12 @@ async function viewMyListings(main) {
         <div class="row"><button id="save" class="btn">저장</button>
           <button id="cancel" class="btn-ghost">취소</button></div>
       </div>`;
-    wirePhotoInput("f_photos", "f_preview", 10);
+    const lpicker = createPhotoPicker("f_photos", 10);
     $("#cancel").addEventListener("click", () => $("#editor").innerHTML = "");
     $("#save").addEventListener("click", async () => {
       const save = $("#save"); save.disabled = true; save.textContent = "저장 중…";
       const existing = item?.image_urls || [];
-      const newUrls = await uploadPhotos($("#f_photos").files, 10);
+      const newUrls = await uploadPhotos(lpicker.files, 10);
       const image_urls = [...existing, ...newUrls].slice(0, 10);
       const payload = {
         owner_id: state.user.id,
