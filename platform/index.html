@@ -113,7 +113,15 @@
     .tag{font-size:11.5px;padding:3px 10px;border-radius:20px;background:var(--soft);color:var(--muted);font-weight:600}
     .tag-open,.tag-on_sale{background:var(--accent-soft);color:var(--accent)}
     .tag-awarded{background:#e6f5ec;color:var(--ok)}
+    .tag-pending{background:#fff4e0;color:#9a6700}
+    .tag-cat{background:var(--ink);color:#fff}
     .tag-sold,.tag-closed,.tag-hidden{background:#fbeae9;color:var(--danger)}
+    /* ---- tabs ---- */
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 16px;overflow-x:auto}
+    .tab{white-space:nowrap;border:1px solid var(--line);background:#fff;color:var(--muted);
+      border-radius:20px;padding:7px 15px;font-size:13.5px;cursor:pointer;transition:.15s}
+    .tab:hover{background:var(--soft)}
+    .tab.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
 
     /* ---- bid form ---- */
     .bid-form{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}

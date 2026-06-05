@@ -12,6 +12,8 @@ const CONFIG = {
   supabaseUrl: "https://iumsnacuxgssnnbckurq.supabase.co",
   supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1bXNuYWN1eGdzc25uYmNrdXJxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2NDQ5ODQsImV4cCI6MjA5NjIyMDk4NH0.lwej8g4YCaiYuoQSXczwRp6ez-X26DD5d1ycMkYwpIk",
   currency: "원",
+  listingCategories: ["벨로르판매", "고객판매"],
+  communityCategories: ["공지사항", "매입후기", "시세정보", "명품시계정보", "Q&A", "자유게시판", "이벤트"],
 };
 
 const sb = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey);
@@ -197,9 +199,10 @@ async function render() {
 // ============================================================
 async function viewHome(main) {
   const [{ data: listings }, { data: reviews }] = await Promise.all([
-    sb.from("listings").select("*").eq("status", "on_sale").order("created_at", { ascending: false }).limit(8),
+    sb.from("listings").select("*").eq("status", "on_sale").order("created_at", { ascending: false }).limit(50),
     sb.from("reviews").select("*").order("created_at", { ascending: false }).limit(3),
   ]);
+  const cats = ["전체", ...CONFIG.listingCategories];
   main.innerHTML = `
     <section class="hero">
       <h1>${esc(CONFIG.brand)}</h1>
@@ -207,13 +210,24 @@ async function viewHome(main) {
       <a href="#${state.user ? (role() === "customer" ? "new-quote" : "home") : "signup"}" class="btn btn-lg" style="width:auto">지금 비교견적 받기</a>
     </section>
     <div class="row between"><h2>판매중인 시계</h2></div>
-    <div class="grid">${(listings || []).map(listingCard).join("") || `<p class="muted">등록된 물건이 없습니다.</p>`}</div>
-    <div class="row between"><h2>고객 후기</h2><a href="#reviews">전체 보기</a></div>
+    <div class="tabs" id="ltabs">${cats.map((c, i) => `<button class="tab ${i === 0 ? "active" : ""}" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}</div>
+    <div class="grid" id="lgrid"></div>
+    <div class="row between" style="margin-top:24px"><h2>고객 후기</h2><a href="#reviews">전체 보기</a></div>
     <div class="grid">${(reviews || []).map(reviewCard).join("") || `<p class="muted">등록된 후기가 없습니다.</p>`}</div>`;
+  const drawL = (cat) => {
+    const items = cat === "전체" ? (listings || []) : (listings || []).filter(l => (l.category || "벨로르판매") === cat);
+    $("#lgrid").innerHTML = items.length ? items.map(listingCard).join("") : `<p class="muted">해당 카테고리에 시계가 없습니다.</p>`;
+  };
+  drawL("전체");
+  main.querySelectorAll("#ltabs .tab").forEach(b => b.addEventListener("click", () => {
+    main.querySelectorAll("#ltabs .tab").forEach(x => x.classList.remove("active"));
+    b.classList.add("active"); drawL(b.dataset.cat);
+  }));
 }
 const listingCard = (l) => `
   <div class="card listing">
     ${(l.image_urls?.[0] || l.image_url) ? `<img src="${esc(l.image_urls?.[0] || l.image_url)}" alt="">` : `<div class="noimg">이미지 없음</div>`}
+    <p><span class="tag tag-cat">${esc(l.category || "벨로르판매")}</span></p>
     <h3>${esc(l.title)}</h3>
     <p class="price">${money(l.price)} <span class="tag tag-${l.status}">${l.status}</span></p>
     <p class="muted small">${esc((l.description || "").slice(0, 60))}</p>
@@ -293,7 +307,7 @@ function viewNewQuote(main) {
   main.innerHTML = `
     <div class="card form-card">
       <h2>비교견적 요청</h2>
-      <p class="muted">요청하면 승인된 업체들에게 알림이 가고, 업체들이 입찰합니다.</p>
+      <p class="muted">요청하면 관리자 확인(승인) 후 업체들에게 전달되어 입찰이 진행됩니다.</p>
       <label>품목명 *<input id="item_name" placeholder="예: 롤렉스 서브마리너 126610LN"></label>
       <label>브랜드<input id="item_brand" placeholder="예: 롤렉스"></label>
       <label>상세 설명<textarea id="item_detail" rows="4" placeholder="상태, 구성품, 구매시기 등"></textarea></label>
@@ -308,14 +322,14 @@ function viewNewQuote(main) {
     const btn = $("#submit"); btn.disabled = true; btn.textContent = "사진 올리는 중…";
     const photo_urls = await uploadPhotos(picker.files, 10);
     const { error } = await sb.from("quote_requests").insert({
-      customer_id: state.user.id, item_name,
+      customer_id: state.user.id, item_name, status: "pending",
       item_brand: $("#item_brand").value.trim() || null,
       item_detail: $("#item_detail").value.trim() || null,
       photo_urls, photo_url: photo_urls[0] || null,
     });
     btn.disabled = false; btn.textContent = "견적 요청 등록";
     if (error) return toast(error.message, false);
-    toast("견적 요청이 등록되었습니다."); location.hash = "#my-quotes";
+    toast("요청 완료! 관리자 승인 후 업체에게 전달됩니다."); location.hash = "#my-quotes";
   });
 }
 
@@ -406,41 +420,58 @@ async function viewMyBids(main) {
 async function viewCommunity(main) {
   const { data: posts } = await sb.from("community_posts")
     .select("*, profiles(display_name)").order("created_at", { ascending: false });
+  const cats = ["전체", ...CONFIG.communityCategories];
   main.innerHTML = `<div class="row between"><h2>커뮤니티</h2>
       ${isAdmin() ? `<button id="write" class="btn">+ 글쓰기</button>` : ""}</div>
+    <div class="tabs" id="ctabs">${cats.map((c, i) => `<button class="tab ${i === 0 ? "active" : ""}" data-cat="${esc(c)}">${esc(c)}</button>`).join("")}</div>
     <div id="post-editor"></div>
-    ${(posts || []).map(p => `<div class="card post">
-        <div class="row between"><h3>${esc(p.title)}</h3>
+    <div id="post-list"></div>`;
+  const postCard = (p) => `<div class="card post">
+        <div class="row between"><h3><span class="tag tag-cat">${esc(p.category || "자유게시판")}</span> ${esc(p.title)}</h3>
           ${isAdmin() ? `<div class="row"><button class="btn-sm edit-post" data-id="${p.id}">수정</button>
             <button class="btn-sm danger del-post" data-id="${p.id}">삭제</button></div>` : ""}</div>
         <p class="muted small">${esc(p.profiles?.display_name || "관리자")} · ${when(p.created_at)}</p>
-        <p>${nl2br(p.body || "")}</p></div>`).join("") || `<p class="muted">아직 게시글이 없습니다.</p>`}`;
-  if (!isAdmin()) return;
+        <p>${nl2br(p.body || "")}</p></div>`;
   const map = {}; (posts || []).forEach(p => map[p.id] = p);
+  const drawPosts = (cat) => {
+    const items = cat === "전체" ? (posts || []) : (posts || []).filter(p => (p.category || "자유게시판") === cat);
+    $("#post-list").innerHTML = items.length ? items.map(postCard).join("") : `<p class="muted">이 카테고리에 글이 없습니다.</p>`;
+    wirePostButtons();
+  };
+  const wirePostButtons = () => {
+    if (!isAdmin()) return;
+    $("#post-list").querySelectorAll(".edit-post").forEach(b => b.addEventListener("click", () => editor(map[b.dataset.id])));
+    $("#post-list").querySelectorAll(".del-post").forEach(b => b.addEventListener("click", async () => {
+      if (!confirm("삭제하시겠어요?")) return;
+      const { error } = await sb.from("community_posts").delete().eq("id", b.dataset.id);
+      if (error) return toast(error.message, false); toast("삭제했습니다."); render();
+    }));
+  };
   const editor = (post) => {
     $("#post-editor").innerHTML = `<div class="card form-card">
       <h3>${post ? "글 수정" : "새 글 작성"}</h3>
+      <label>카테고리<select id="p_cat">${CONFIG.communityCategories.map(c => `<option ${post?.category === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
       <label>제목 *<input id="p_title" value="${esc(post?.title || "")}"></label>
       <label>내용<textarea id="p_body" rows="5">${esc(post?.body || "")}</textarea></label>
       <div class="row"><button id="p_save" class="btn">저장</button><button id="p_cancel" class="btn-ghost">취소</button></div></div>`;
     $("#p_cancel").addEventListener("click", () => $("#post-editor").innerHTML = "");
     $("#p_save").addEventListener("click", async () => {
-      const title = $("#p_title").value.trim(), body = $("#p_body").value.trim();
+      const title = $("#p_title").value.trim(), body = $("#p_body").value.trim(), category = $("#p_cat").value;
       if (!title) return toast("제목을 입력하세요.", false);
       const res = post
-        ? await sb.from("community_posts").update({ title, body, updated_at: new Date().toISOString() }).eq("id", post.id)
-        : await sb.from("community_posts").insert({ author_id: state.user.id, title, body });
+        ? await sb.from("community_posts").update({ title, body, category, updated_at: new Date().toISOString() }).eq("id", post.id)
+        : await sb.from("community_posts").insert({ author_id: state.user.id, title, body, category });
       if (res.error) return toast(res.error.message, false);
       toast("저장되었습니다."); render();
     });
   };
-  $("#write")?.addEventListener("click", () => editor(null));
-  main.querySelectorAll(".edit-post").forEach(b => b.addEventListener("click", () => editor(map[b.dataset.id])));
-  main.querySelectorAll(".del-post").forEach(b => b.addEventListener("click", async () => {
-    if (!confirm("삭제하시겠어요?")) return;
-    const { error } = await sb.from("community_posts").delete().eq("id", b.dataset.id);
-    if (error) return toast(error.message, false); toast("삭제했습니다."); render();
+  drawPosts("전체");
+  main.querySelectorAll("#ctabs .tab").forEach(b => b.addEventListener("click", () => {
+    main.querySelectorAll("#ctabs .tab").forEach(x => x.classList.remove("active"));
+    b.classList.add("active"); drawPosts(b.dataset.cat);
   }));
+  if (!isAdmin()) return;
+  $("#write")?.addEventListener("click", () => editor(null));
 }
 
 // ============================================================
@@ -508,6 +539,7 @@ async function viewAdminListings(main) {
     <div id="editor"></div>
     <div class="grid">${(items || []).map(l => `<div class="card listing">
         ${(l.image_urls?.[0] || l.image_url) ? `<img src="${esc(l.image_urls?.[0] || l.image_url)}" alt="">` : `<div class="noimg">이미지 없음</div>`}
+        <p><span class="tag tag-cat">${esc(l.category || "벨로르판매")}</span></p>
         <h3>${esc(l.title)}</h3>
         <p class="price">${money(l.price)} <span class="tag tag-${l.status}">${l.status}</span></p>
         <div class="row"><button class="btn-sm edit" data-id="${l.id}">수정</button>
@@ -517,6 +549,7 @@ async function viewAdminListings(main) {
     $("#editor").innerHTML = `<div class="card form-card">
       <h3>${item ? "시계 수정" : "새 시계 등록"}</h3>
       <label>제목 *<input id="f_title" value="${esc(item?.title || "")}"></label>
+      <label>카테고리<select id="f_cat">${CONFIG.listingCategories.map(c => `<option ${item?.category === c ? "selected" : ""}>${c}</option>`).join("")}</select></label>
       <label>가격<input id="f_price" type="number" value="${item?.price ?? ""}"></label>
       <label>설명<textarea id="f_desc" rows="3">${esc(item?.description || "")}</textarea></label>
       <label>사진 추가 (최대 10장)</label><div id="f_photos" class="photo-grid"></div>
@@ -531,6 +564,7 @@ async function viewAdminListings(main) {
       const image_urls = [...existing, ...newUrls].slice(0, 10);
       const payload = {
         owner_id: state.user.id, title: $("#f_title").value.trim(),
+        category: $("#f_cat").value,
         price: $("#f_price").value ? Number($("#f_price").value) : null,
         description: $("#f_desc").value.trim() || null,
         image_urls, image_url: image_urls[0] || null,
@@ -603,12 +637,35 @@ async function viewAdminReviews(main) {
 async function viewAdminQuotes(main) {
   const { data: quotes } = await sb.from("quote_requests").select("*, profiles(display_name)").order("created_at", { ascending: false });
   const ids = (quotes || []).map(q => q.id);
-  const { data: bids } = ids.length ? await sb.from("bids").select("*").in("quote_request_id", ids) : { data: [] };
+  const { data: bids } = ids.length ? await sb.from("bids").select("*").in("quote_request_id", ids).order("amount", { ascending: false }) : { data: [] };
   const byQ = {}; (bids || []).forEach(b => (byQ[b.quote_request_id] ||= []).push(b));
-  main.innerHTML = `<h2>견적 관리</h2>` + ((quotes || []).map(q => `<div class="card">
-      <div class="row between"><h3>${esc(q.item_name)} <span class="tag tag-${q.status}">${q.status}</span></h3>
+  const pending = (quotes || []).filter(q => q.status === "pending");
+  const others = (quotes || []).filter(q => q.status !== "pending");
+  const card = (q) => {
+    const list = byQ[q.id] || []; const best = list[0];
+    return `<div class="card">
+      <div class="row between"><h3>${esc(q.item_name)} ${q.item_brand ? `<span class="muted">/ ${esc(q.item_brand)}</span>` : ""}
+        <span class="tag tag-${q.status}">${q.status}</span></h3>
         <span class="muted small">${esc(q.profiles?.display_name || "-")} · ${when(q.created_at)}</span></div>
-      <p class="muted small">입찰 ${(byQ[q.id] || []).length}건</p></div>`).join("") || `<p class="muted">견적이 없습니다.</p>`);
+      ${q.item_detail ? `<p class="muted">${esc(q.item_detail)}</p>` : ""}
+      ${gallery(q.photo_urls?.length ? q.photo_urls : (q.photo_url ? [q.photo_url] : []))}
+      ${q.status === "pending" ? `<button class="btn approve-q" data-id="${q.id}">승인 → 업체에 전달</button>`
+        : `<h4>입찰 ${list.length}건 ${best ? `· 최고가 <b>${money(best.amount)}</b>` : ""}</h4>
+           ${list.length ? `<table class="bids"><tr><th>업체</th><th>금액</th><th>메시지</th><th>일시</th></tr>
+             ${list.map(b => `<tr><td class="muted small">${b.vendor_id.slice(0, 8)}</td><td><b>${money(b.amount)}</b>
+               ${q.awarded_bid === b.id ? ` <span class="tag tag-awarded">채택</span>` : ""}</td>
+               <td>${esc(b.message || "-")}</td><td class="muted small">${when(b.created_at)}</td></tr>`).join("")}
+           </table>` : `<p class="muted">아직 입찰이 없습니다.</p>`}`}
+    </div>`;
+  };
+  main.innerHTML = `<h2>견적 관리</h2>
+    <h3>승인 대기 (${pending.length})</h3>${pending.map(card).join("") || `<p class="muted">대기중인 견적이 없습니다.</p>`}
+    <h3 style="margin-top:24px">진행/완료</h3>${others.map(card).join("") || `<p class="muted">없습니다.</p>`}`;
+  main.querySelectorAll(".approve-q").forEach(b => b.addEventListener("click", async () => {
+    const { error } = await sb.from("quote_requests").update({ status: "open" }).eq("id", b.dataset.id);
+    if (error) return toast(error.message, false);
+    toast("승인 완료! 업체들에게 전달되었습니다."); render();
+  }));
 }
 
 // ============================================================
