@@ -26,6 +26,10 @@
 2. `schema.sql` 전체 내용을 붙여넣고 **RUN**
 3. 테이블·트리거·보안정책(RLS)·실시간 설정이 한 번에 적용됩니다
 
+### 2-b. 사진 업로드 기능 추가
+`migration_photos.sql` 도 SQL Editor에 붙여넣고 RUN 하세요.
+(사진 컬럼 + Storage `photos` 버킷 + 접근정책이 생성됩니다. 최대 10장 업로드 지원)
+
 ### 3. 키 연결
 1. 대시보드 **Project Settings → API**
 2. `Project URL` 과 `anon public` 키를 복사

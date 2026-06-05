@@ -40,6 +40,36 @@ const toast = (msg, ok = true) => {
 };
 const role = () => state.profile?.role || "guest";
 
+// 사진 업로드 (최대 max장) → 공개 URL 배열 반환
+async function uploadPhotos(files, max = 10) {
+  const list = Array.from(files).slice(0, max);
+  const urls = [];
+  for (const file of list) {
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${state.user.id}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await sb.storage.from("photos").upload(path, file, { cacheControl: "3600", upsert: false });
+    if (error) { toast("사진 업로드 실패: " + error.message, false); continue; }
+    urls.push(sb.storage.from("photos").getPublicUrl(path).data.publicUrl);
+  }
+  return urls;
+}
+
+// 사진 갤러리 HTML
+const gallery = (urls) => (urls && urls.length)
+  ? `<div class="gallery">${urls.map(u => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="" loading="lazy"></a>`).join("")}</div>`
+  : "";
+
+// 파일 입력 + 미리보기 연결 (최대 max장)
+function wirePhotoInput(inputId, previewId, max = 10) {
+  const input = $("#" + inputId), prev = $("#" + previewId);
+  if (!input) return;
+  input.addEventListener("change", () => {
+    const files = Array.from(input.files).slice(0, max);
+    if (input.files.length > max) toast(`사진은 최대 ${max}장까지예요. 앞 ${max}장만 올립니다.`, false);
+    prev.innerHTML = files.map(f => `<img src="${URL.createObjectURL(f)}" alt="">`).join("");
+  });
+}
+
 // ============================================================
 // 인증
 // ============================================================
@@ -170,7 +200,7 @@ async function viewHome(main) {
     <div class="grid">${
       (listings || []).map(l => `
         <div class="card listing">
-          ${l.image_url ? `<img src="${esc(l.image_url)}" alt="">` : `<div class="noimg">이미지 없음</div>`}
+          ${(l.image_urls?.[0] || l.image_url) ? `<img src="${esc(l.image_urls?.[0] || l.image_url)}" alt="">` : `<div class="noimg">이미지 없음</div>`}
           <h3>${esc(l.title)}</h3>
           <p class="price">${money(l.price)}</p>
           <p class="muted">${esc((l.description || "").slice(0, 60))}</p>
@@ -230,19 +260,25 @@ function viewNewQuote(main) {
       <label>품목명 *<input id="item_name" placeholder="예: 롤렉스 서브마리너 126610LN"></label>
       <label>브랜드<input id="item_brand" placeholder="예: 롤렉스"></label>
       <label>상세 설명<textarea id="item_detail" rows="4" placeholder="상태, 구성품, 구매시기 등"></textarea></label>
-      <label>사진 URL (선택)<input id="photo_url" placeholder="https://..."></label>
+      <label>사진 (최대 10장)<input id="photos" type="file" accept="image/*" multiple></label>
+      <div id="preview" class="preview"></div>
       <button id="submit" class="btn btn-lg">견적 요청 등록</button>
     </div>`;
+  wirePhotoInput("photos", "preview", 10);
   $("#submit").addEventListener("click", async () => {
     const item_name = $("#item_name").value.trim();
     if (!item_name) return toast("품목명을 입력하세요.", false);
+    const btn = $("#submit"); btn.disabled = true; btn.textContent = "사진 올리는 중…";
+    const photo_urls = await uploadPhotos($("#photos").files, 10);
     const { error } = await sb.from("quote_requests").insert({
       customer_id: state.user.id,
       item_name,
       item_brand: $("#item_brand").value.trim() || null,
       item_detail: $("#item_detail").value.trim() || null,
-      photo_url: $("#photo_url").value.trim() || null,
+      photo_urls,
+      photo_url: photo_urls[0] || null,
     });
+    btn.disabled = false; btn.textContent = "견적 요청 등록";
     if (error) return toast(error.message, false);
     toast("견적 요청이 등록되었습니다.");
     location.hash = "#my-quotes";
@@ -313,7 +349,7 @@ async function viewVendorQuotes(main) {
     <div class="card">
       <h3>${esc(q.item_name)} ${q.item_brand ? `<span class="muted">/ ${esc(q.item_brand)}</span>` : ""}</h3>
       ${q.item_detail ? `<p class="muted">${esc(q.item_detail)}</p>` : ""}
-      ${q.photo_url ? `<img class="thumb" src="${esc(q.photo_url)}" alt="">` : ""}
+      ${gallery(q.photo_urls?.length ? q.photo_urls : (q.photo_url ? [q.photo_url] : []))}
       ${b
         ? `<p class="bidded">내 입찰가: <b>${money(b.amount)}</b> ${b.message ? `· ${esc(b.message)}` : ""}</p>`
         : `<div class="bid-form">
@@ -366,25 +402,33 @@ async function viewMyListings(main) {
         <label>제목 *<input id="f_title" value="${esc(item?.title || "")}"></label>
         <label>가격<input id="f_price" type="number" value="${item?.price ?? ""}"></label>
         <label>설명<textarea id="f_desc" rows="3">${esc(item?.description || "")}</textarea></label>
-        <label>이미지 URL<input id="f_img" value="${esc(item?.image_url || "")}"></label>
+        <label>사진 추가 (최대 10장)<input id="f_photos" type="file" accept="image/*" multiple></label>
+        <div id="f_preview" class="preview"></div>
+        ${(item?.image_urls?.length) ? `<p class="muted small">기존 사진 ${item.image_urls.length}장 유지됨</p>${gallery(item.image_urls)}` : ""}
         <label>상태<select id="f_status">
           ${["on_sale","sold","hidden"].map(s => `<option ${item?.status===s?"selected":""}>${s}</option>`).join("")}
         </select></label>
         <div class="row"><button id="save" class="btn">저장</button>
           <button id="cancel" class="btn-ghost">취소</button></div>
       </div>`;
+    wirePhotoInput("f_photos", "f_preview", 10);
     $("#cancel").addEventListener("click", () => $("#editor").innerHTML = "");
     $("#save").addEventListener("click", async () => {
+      const save = $("#save"); save.disabled = true; save.textContent = "저장 중…";
+      const existing = item?.image_urls || [];
+      const newUrls = await uploadPhotos($("#f_photos").files, 10);
+      const image_urls = [...existing, ...newUrls].slice(0, 10);
       const payload = {
         owner_id: state.user.id,
         title: $("#f_title").value.trim(),
         price: $("#f_price").value ? Number($("#f_price").value) : null,
         description: $("#f_desc").value.trim() || null,
-        image_url: $("#f_img").value.trim() || null,
+        image_urls,
+        image_url: image_urls[0] || null,
         status: $("#f_status").value,
         updated_at: new Date().toISOString(),
       };
-      if (!payload.title) return toast("제목을 입력하세요.", false);
+      if (!payload.title) { save.disabled = false; save.textContent = "저장"; return toast("제목을 입력하세요.", false); }
       const res = item
         ? await sb.from("listings").update(payload).eq("id", item.id)
         : await sb.from("listings").insert(payload);
