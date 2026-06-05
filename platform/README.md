@@ -30,6 +30,10 @@
 `migration_photos.sql` 도 SQL Editor에 붙여넣고 RUN 하세요.
 (사진 컬럼 + Storage `photos` 버킷 + 접근정책이 생성됩니다. 최대 10장 업로드 지원)
 
+### 2-c. 승인제 + 후기 + 권한 (v2)
+`migration_v2.sql` 도 SQL Editor에 붙여넣고 RUN 하세요.
+(업체 승인제, 후기 테이블, 권한 재정의가 적용됩니다.)
+
 ### 3. 키 연결
 1. 대시보드 **Project Settings → API**
 2. `Project URL` 과 `anon public` 키를 복사
@@ -65,6 +69,33 @@ where id = (select id from auth.users where email = '관리자이메일@example.
 들어온 견적 조회·입찰·판매물건 관리 메뉴가 열립니다.
 
 ---
+
+## 구글 / 카카오 로그인 설정
+
+로그인 화면에 버튼은 이미 있습니다. 작동하려면 각 제공자 설정이 필요해요.
+
+**구글:**
+1. https://console.cloud.google.com → OAuth 동의화면 + OAuth 클라이언트(웹) 생성
+2. 승인된 리디렉션 URI 에 `https://<프로젝트>.supabase.co/auth/v1/callback` 추가
+3. 발급된 Client ID/Secret 을 Supabase **Authentication → Providers → Google** 에 입력 후 Enable
+
+**카카오:**
+1. https://developers.kakao.com → 애플리케이션 추가
+2. 카카오 로그인 활성화 + Redirect URI 에 `https://<프로젝트>.supabase.co/auth/v1/callback` 추가
+3. REST API 키/Client Secret 을 Supabase **Authentication → Providers → Kakao** 에 입력 후 Enable
+
+> 두 경우 모두 Supabase **Authentication → URL Configuration** 의 Site URL 에
+> 배포 주소(예: `https://jeongsseongg.github.io/blog-watch/platform/`)를 넣어주세요.
+
+## 역할별 권한 정리
+
+| | 일반회원 | 업체회원(승인 후) | 관리자 |
+|---|---|---|---|
+| 후기/판매/커뮤니티 **조회** | O | O | O |
+| 비교견적 **요청** | O | - | - |
+| 들어온 견적 보기·**입찰** | - | O | O |
+| 판매시계·후기·커뮤니티 **수정** | - | - | O |
+| 업체 **승인** | - | - | O |
 
 ## 오토픽스코리아로 복제하기
 

@@ -132,6 +132,19 @@
     .stat{flex:1;min-width:110px;border:1px solid var(--line);border-radius:var(--radius);padding:20px;text-align:center;background:#fff;box-shadow:var(--shadow)}
     .stat b{display:block;font-size:30px;color:var(--accent);font-weight:800} .stat span{font-size:13px;color:var(--muted)}
 
+    /* ---- oauth ---- */
+    .oauth{display:flex;flex-direction:column;gap:9px;margin:6px 0 4px}
+    .btn-oauth{display:flex;align-items:center;justify-content:center;gap:9px;padding:12px;border-radius:11px;
+      border:1px solid var(--line);background:#fff;font-size:14.5px;font-weight:600;cursor:pointer;transition:.15s}
+    .btn-oauth:hover{background:var(--soft)}
+    .btn-oauth span{display:inline-flex;width:20px;height:20px;border-radius:50%;align-items:center;justify-content:center;font-weight:800;font-size:12px}
+    .btn-oauth.google span{background:#fff;border:1px solid var(--line);color:#4285f4}
+    .btn-oauth.kakao{background:#fee500;border-color:#fee500}
+    .btn-oauth.kakao span{background:#391b1b;color:#fee500}
+    .divider{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px;margin:6px 0}
+    .divider::before,.divider::after{content:"";flex:1;height:1px;background:var(--line)}
+    .stars{color:#f5a623;font-size:16px;letter-spacing:2px;margin:0 0 4px}
+
     /* ---- misc ---- */
     .loading{color:var(--muted);padding:50px;text-align:center}
     .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);padding:13px 22px;border-radius:12px;
